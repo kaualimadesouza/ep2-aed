@@ -252,6 +252,24 @@ void centralidadeDeGrau(Grafo* g, double* valores) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
 
+  /*
+  -> A função percorre a matriz pelas colunas, da primeira coluna até a ultima
+  -> Nesse caso a coluna representa quais vertices apontam para um determinado vertice
+  -> Percorrendo a lista podemos verificar se há um relacionamento e iterar em um contador
+  -> No final de cada ciclo do primeiro "for" conseguimos calcular a Centralidade de grau do determiando vertice
+  */
+
+  int i, j;
+  int contGrauEntrada;
+  for(i = 0; i < g->numVertices; i++) {
+    contGrauEntrada = 0; // Contador do grau de entrada
+    for(j = 0; j < g->numVertices; j++) {
+      if(g->matriz[j][i] && j != i) {
+        contGrauEntrada++;
+      }
+    }
+    valores[i] = contGrauEntrada / (g->numVertices-1.0); // Operação para calculo da Centralidade de Grau
+  }
 }
 
 
@@ -275,6 +293,8 @@ void centralidadeDeIntermediacao(Grafo* g, double* valores) {
 void centralidadePageRank(Grafo* g, double* valores, int iteracoes) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
+
+
 
 }
 
