@@ -278,6 +278,44 @@ void centralidadeDeProximidade(Grafo* g, double* valores) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
 
+  /*
+  -> Função que basicamente para cada valor de 'valores[]' precisamos inserir numero de vertices - 1 e dividir pela soma da distancia de um vertice em relação a todos
+  -> Primeiro precisamos da matriz de distancias
+  -> Então se tivermos essa matriz de distancia: 
+            0       1       2       3       4
+  0         0       1       1       2       2
+  1         2       0       1       1       1
+  2         3       4       0       1       2
+  3         2       3       3       0       1
+  4         1       2       2       3       0
+
+  -> Temos que o numero de vertice - 1 seja igual a 4 nesse caso e que a soma de todas as distancias seja 6
+  -> Então teremos 4/6 que dará 0.666 aproximadamente */
+
+  int arestasMenosUm = g->numVertices -1;
+  int i, j;
+
+  int **dist = (int**)malloc(sizeof(int*) * g->numVertices); // inicialização da matriz de distancias
+  int **pred = (int**)malloc(sizeof(int*) * g->numVertices); // inicialização da matriz de predecessores
+
+  // Iniciar os valores dentro das linhas
+  for (i = 0; i < g->numVertices; i++) {
+      dist[i] = (int*)malloc(sizeof(int) * g->numVertices);
+      pred[i] = (int*)malloc(sizeof(int) * g->numVertices);
+  }
+
+
+  // Alimenta nossa matriz de distancias e matriz de predecessores
+  calculaDistanciaFloydWarshall(g, dist, pred);
+
+  // Loop para percorrer a matriz de distancias e inserir a centralidade de proximidade no indice certo da lista 'valores[]' 
+  for(i = 0; i < g->numVertices; i++) {
+    float distanciaVertice = 0.0;
+    for(j = 0; j < g->numVertices; j++) {
+      distanciaVertice+=dist[i][j]; 
+    }
+    valores[i] = arestasMenosUm/distanciaVertice;
+  }
 }
 
 
@@ -294,8 +332,76 @@ void centralidadePageRank(Grafo* g, double* valores, int iteracoes) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
 
+  /*
+  -> Essa função usa como base o algorimo do google de ranquear paginas
+  -> Aqui usamos para grafos, no caso que avaliamos e pontuamos os vertices que tem os seguidores mais influentes
+  -> Está é a função de origem: 
+
+  PR(x, 0) = 1 / N
+
+  PR(x, t+1) = (1 - d) / N + d * Σ [ PR(y, t) / Saida(y) ]
+                          y ∈ Seguem(x)
+
+  -> A função separa entre a parte constante e o somatório
+  */
+
+  // Variaveis
+  double d = 0.85;
+  int N = g->numVertices;
+  double primeiraParteFuncao = (1.0 - d) / N;
+  int i, j, k;
+  double* pageRankAtual = (double*)malloc(N * sizeof(double));
+  double* pageRankProximo = (double*)malloc(N * sizeof(double));
+  double valor_inicial = 1.0 / N;
 
 
+  // Inicializando os PR | Se os iterações for 0 só executa esse bloco 
+  for (int i = 0; i < N; ++i) {
+      pageRankAtual[i] = valor_inicial;
+      pageRankProximo[i] = valor_inicial;
+  }
+
+  int* saidasY = (int*)malloc(N * sizeof(int));
+  for(i = 0; i < g->numVertices; i++) {
+    saidasY[i] = 0;
+  }
+
+  // Calcula o numero de vertices que saem de cada Vertice | Basicamente contar
+  for (i = 0; i < g->numVertices; i++) {
+    for (j = 0; j < g->numVertices; j++) {
+      if(g->matriz[i][j] && i != j) {
+        saidasY[i]++;
+      }
+    }
+  }
+
+  // Loops que fazer o coração do algorimo, realiza o somatório com os seguidores de cada vertice e calculam um novo PageRank
+  for(i = 0; i < iteracoes; i++) {
+    for(j = 0; j < g->numVertices; j++) {
+      double somatorio = 0.0;
+      for(k = 0; k < g->numVertices; k++) {
+        if(g->matriz[k][j] && k != j) {
+          double pr = pageRankAtual[k];
+          somatorio+=pr/saidasY[k];
+        }
+      }
+      pageRankProximo[j] = primeiraParteFuncao + d * somatorio;
+    }
+
+    for (j = 0; j < N; j++) {
+      pageRankAtual[j] = pageRankProximo[j];
+    }
+  }
+
+  // Passa o resultado para 'valores[]'
+  for (i = 0; i < N; i++) {
+    valores[i] = pageRankAtual[i];
+  }
+
+  // Libera memoria
+  free(pageRankAtual);
+  free(pageRankProximo);
+  free(saidasY);
 }
 
 
