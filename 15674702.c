@@ -292,7 +292,7 @@ void centralidadeDeProximidade(Grafo* g, double* valores) {
   -> Temos que o numero de vertice - 1 seja igual a 4 nesse caso e que a soma de todas as distancias seja 6
   -> Então teremos 4/6 que dará 0.666 aproximadamente */
 
-  int arestasMenosUm = g->numVertices -1;
+  int verticesMenosUm = g->numVertices -1;
   int i, j;
 
   int **dist = (int**)malloc(sizeof(int*) * g->numVertices); // inicialização da matriz de distancias
@@ -304,7 +304,6 @@ void centralidadeDeProximidade(Grafo* g, double* valores) {
       pred[i] = (int*)malloc(sizeof(int) * g->numVertices);
   }
 
-
   // Alimenta nossa matriz de distancias e matriz de predecessores
   calculaDistanciaFloydWarshall(g, dist, pred);
 
@@ -314,8 +313,12 @@ void centralidadeDeProximidade(Grafo* g, double* valores) {
     for(j = 0; j < g->numVertices; j++) {
       distanciaVertice+=dist[i][j]; 
     }
-    valores[i] = arestasMenosUm/distanciaVertice;
+    valores[i] = verticesMenosUm/distanciaVertice;
   }
+
+  // Libera memória das matrizes geradas
+  free(dist);
+  free(pred);
 }
 
 
@@ -324,10 +327,62 @@ void centralidadeDeIntermediacao(Grafo* g, double* valores) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
 
+  /*
+  -> Função que conta quantas intermediações os vertices de um grafo possuem
+  -> ou seja, se ele está no caminho entre 2 outros vertices podemos iterar dentro de valores[]
+  -> Aqui usamos FloydWarshall para obter a matriz de predecessores e verificar quais vertices possuem dentro de um caminho qualquer
+  -> Se houver um vertice no caminho de outros 2 vertices podemos iterar no indice desse vertice
+  */
+
+  // Variavel de normalização
+  double normalizacaoDenominador = (g->numVertices-1)*(g->numVertices-2);
+  int i, j, k;
+
+  int **dist = (int**)malloc(sizeof(int*) * g->numVertices); // inicialização da matriz de distancias
+  int **pred = (int**)malloc(sizeof(int*) * g->numVertices); // inicialização da matriz de predecessores
+
+  // Iniciar os valores em valores[]
+  for(i = 0; i < g->numVertices; i++) {
+    valores[i] = 0;
+  }
+
+  // Iniciar os valores dentro das linhas
+  for (i = 0; i < g->numVertices; i++) {
+      dist[i] = (int*)malloc(sizeof(int) * g->numVertices);
+      pred[i] = (int*)malloc(sizeof(int) * g->numVertices);
+  }
+
+  // Alimenta nossa matriz de distancias e matriz de predecessores
+  calculaDistanciaFloydWarshall(g, dist, pred);
+
+  // Percorre a matriz para ver todos os caminhos possiveis
+  for(i = 0; i < g->numVertices; i++) {
+    for(j = 0; j < g->numVertices; j++) {
+      if (i == j) continue; // Verificar se o caminho é em relação ao proprio vertice
+      
+      int atual = pred[i][j]; // Pega o predecessor do vertice J
+
+      // Loop que passa por todos os predecessores existentes no meio do caminho de i para j
+      // Verifica se o predecessor não é o vertice de origem, quando for o predecessor de origem sai do loop, ou se for um caminho direto nem entra no loop
+      while (atual != i) {
+          valores[atual] += 1.0;
+          atual = pred[i][atual];
+      }
+    }
+  }
+
+  // Normalização de cada intermediação
+  for(i = 0; i < g->numVertices; i++) {
+    valores[i] /= normalizacaoDenominador;
+  }
+
+  // Libera memória das matrizes geradas
+  free(dist);
+  free(pred);
 }
 
 
-/* Funcao que calcula a Centralidade Page Rank de todos os vertices. */
+/* Função que calcula a Centralidade Page Rank de todos os vertices. */
 void centralidadePageRank(Grafo* g, double* valores, int iteracoes) {
 
   /* COMPLETE/IMPLEMENTE ESTA FUNCAO */
@@ -355,18 +410,19 @@ void centralidadePageRank(Grafo* g, double* valores, int iteracoes) {
   double valor_inicial = 1.0 / N;
 
 
-  // Inicializando os PR | Se os iterações for 0 só executa esse bloco 
+  // Inicializando os PR | Se os iterações for 0 só executa esse bloco e nao executa o resto
   for (int i = 0; i < N; ++i) {
       pageRankAtual[i] = valor_inicial;
       pageRankProximo[i] = valor_inicial;
   }
 
+  // Inicializa 'SaidasY' usado na formula
   int* saidasY = (int*)malloc(N * sizeof(int));
   for(i = 0; i < g->numVertices; i++) {
     saidasY[i] = 0;
   }
 
-  // Calcula o numero de vertices que saem de cada Vertice | Basicamente contar
+  // Calcula o numero de vertices que saem de cada Vertice | Basicamente conta o grau de saida dos vertices
   for (i = 0; i < g->numVertices; i++) {
     for (j = 0; j < g->numVertices; j++) {
       if(g->matriz[i][j] && i != j) {
@@ -376,24 +432,27 @@ void centralidadePageRank(Grafo* g, double* valores, int iteracoes) {
   }
 
   // Loops que fazer o coração do algorimo, realiza o somatório com os seguidores de cada vertice e calculam um novo PageRank
-  for(i = 0; i < iteracoes; i++) {
+  for(i = 0; i < iteracoes; i++) { // Itera sobre o numero de 'iteracoes'
     for(j = 0; j < g->numVertices; j++) {
-      double somatorio = 0.0;
+      double somatorio = 0.0; // Inicializa um novo somatorio a cada iteracao
       for(k = 0; k < g->numVertices; k++) {
+        // Verifica somente os vertices de chegada no vertice 'k'
         if(g->matriz[k][j] && k != j) {
           double pr = pageRankAtual[k];
           somatorio+=pr/saidasY[k];
         }
       }
-      pageRankProximo[j] = primeiraParteFuncao + d * somatorio;
+      // Insere no array pageRankProximo os valores de PR de iteração+1
+      pageRankProximo[j] = primeiraParteFuncao + d * somatorio; 
     }
 
+    // Atualiza o atual para a proxima iteração (Se ouver)
     for (j = 0; j < N; j++) {
       pageRankAtual[j] = pageRankProximo[j];
     }
   }
 
-  // Passa o resultado para 'valores[]'
+  // Passa o resultado final para 'valores[]'
   for (i = 0; i < N; i++) {
     valores[i] = pageRankAtual[i];
   }
